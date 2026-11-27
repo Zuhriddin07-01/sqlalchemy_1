@@ -1,52 +1,54 @@
 # E-Commerce Backend API
 
-An educational group project (Project 8), extended from the original SQLAlchemy database exercise into a local FastAPI API.
-
-## Stack
-Python, FastAPI, SQLAlchemy 2, SQLite, Pydantic, Uvicorn, pytest.
+A FastAPI and SQLAlchemy portfolio project for browsing a product catalog and creating orders. It extends the original Project 8 group database exercise.
 
 ## Features
-- Seller, product, customer, order and order item models.
-- Foreign key enforcement, price and quantity constraints, unique order numbers.
-- Product listing with pagination.
-- Order creation with stored unit prices.
-- Request validation and database conflict handling.
-- Interactive OpenAPI documentation.
 
-## Quick start
-Use Python 3.10+ in a virtual environment.
+- Public product catalog with pagination and interactive Swagger documentation.
+- API-key protected creation of sellers, products, customers and orders.
+- Relational constraints, validated inputs and prices stored with each order item.
 
-```bash
-python -m pip install -r requirements.txt
-python -m uvicorn main:app --reload
+## Run locally
+
+Use Python 3.11 or newer. From the repository root, run these commands in PowerShell.
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+$env:SHOP_WRITE_API_KEY = .\.venv\Scripts\python.exe -c "import secrets; print(secrets.token_urlsafe(32))"
+.\.venv\Scripts\python.exe -m uvicorn main:app --reload
 ```
 
-Swagger UI: http://127.0.0.1:8000/docs
+Open the [local Swagger UI](http://127.0.0.1:8000/docs). Use **Authorize** with the value of `SHOP_WRITE_API_KEY` to try write endpoints. The key is a shared credential for demo operators. Keep it outside source control and use HTTPS on hosted instances. Writes return 401 for missing or incorrect keys and 503 if the server key is unavailable.
 
-## Routes
-| Method | Path | Purpose |
-|---|---|---|
-| GET | /health | Application status |
-| POST | /sellers | Create seller |
-| POST | /products | Create product |
-| GET | /products | List products |
-| POST | /customers | Create customer |
-| POST | /orders | Create order |
+## API
 
-Create a seller first, then a product and customer, then an order referencing their IDs.
+| Method | Path | Access | Purpose |
+|---|---|---|---|
+| GET | `/health` | Public | Health check |
+| GET | `/products` | Public | List products with `offset` and `limit` |
+| POST | `/sellers` | API key | Create a seller |
+| POST | `/products` | API key | Create a product |
+| POST | `/customers` | API key | Create a customer |
+| POST | `/orders` | API key | Create an order |
 
-## Database
-Seller 1:N Product; Customer 1:N Order; Order 1:N OrderItem; Product 1:N OrderItem.
+Create a seller, add a product for that seller, and create a customer. Then submit an order with the customer ID, product ID and quantity.
 
-SQLite is the default. DATABASE_URL can override the connection string. Tables are created on startup. Existing incompatible databases require a migration or a fresh development database; back up existing data first.
+## Run tests
 
-## Tests
-```bash
-python -m pytest -q
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements-test.txt
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-## Scope
-Local demonstration only. Authentication, authorization, inventory, payment processing, migrations and production security are not implemented. Do not expose this API publicly or use real customer data. Tests are provided but execution has not been verified in this environment.
+Each test uses a fresh SQLite database. The suite checks permissions, the order flow, input validation, conflicts and the OpenAPI security scheme.
+
+## Render demo
+
+Create a Blueprint in Render and select this repository and its `main` branch. [render.yaml](render.yaml) defines the build and start commands, the `/health` check, and a generated `SHOP_WRITE_API_KEY` in Render's environment. Open `/health` and `/docs` on the URL Render assigns after the deployment succeeds.
+
+The free demo uses SQLite in an ephemeral filesystem. Use sample data only. A restart or redeploy can erase the catalog and orders. Back up any existing local database before changing its schema. The app creates missing tables on startup.
 
 ## Attribution
+
 Originally developed with Project 8 group students.

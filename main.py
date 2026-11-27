@@ -1,8 +1,12 @@
 from contextlib import asynccontextmanager
 from decimal import Decimal
+from os import getenv
+from secrets import compare_digest
 from typing import Annotated
 from uuid import uuid4
-from fastapi import FastAPI, Depends, HTTPException
+
+from fastapi import Depends, FastAPI, HTTPException, Query, Security
+from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -17,6 +21,21 @@ async def lifespan(app):
 
 app = FastAPI(title="E-Commerce API", version="1.0.0", lifespan=lifespan)
 DB = Annotated[Session, Depends(get_db)]
+write_api_key = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+
+def require_write_key(key: Annotated[str | None, Security(write_api_key)]):
+    expected = getenv("SHOP_WRITE_API_KEY", "")
+    if len(expected) < 32 or not expected.isascii():
+        raise HTTPException(503, "Write access is unavailable")
+    if key is None or not compare_digest(key.encode(), expected.encode()):
+        raise HTTPException(
+            401, "A valid API key is required", headers={"WWW-Authenticate": "APIKey"}
+        )
+
+
+write_access = [Depends(require_write_key)]
+RecordId = Annotated[int, Field(gt=0, le=2**63 - 1)]
 
 class SellerIn(BaseModel):
     name: str = Field(min_length=1, max_length=50)
@@ -28,7 +47,7 @@ class SellerOut(SellerIn):
 class ProductIn(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     description: str = Field(default="", max_length=500)
-    seller_id: int = Field(gt=0)
+    seller_id: RecordId
     price: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
 
 class ProductOut(ProductIn):
@@ -45,11 +64,11 @@ class CustomerOut(CustomerIn):
     id: int
 
 class ItemIn(BaseModel):
-    product_id: int = Field(gt=0)
+    product_id: RecordId
     quantity: int = Field(gt=0, le=10000)
 
 class OrderIn(BaseModel):
-    customer_id: int = Field(gt=0)
+    customer_id: RecordId
     items: list[ItemIn] = Field(min_length=1, max_length=100)
 
 class ItemOut(ItemIn):
@@ -78,27 +97,29 @@ def save(db, obj):
 def health():
     return {"status": "ok"}
 
-@app.post("/sellers", response_model=SellerOut, status_code=201)
+@app.post("/sellers", response_model=SellerOut, status_code=201, dependencies=write_access)
 def create_seller(data: SellerIn, db: DB):
     return save(db, Seller(**data.model_dump()))
 
-@app.post("/products", response_model=ProductOut, status_code=201)
+@app.post("/products", response_model=ProductOut, status_code=201, dependencies=write_access)
 def create_product(data: ProductIn, db: DB):
     if db.get(Seller, data.seller_id) is None:
         raise HTTPException(404, "Seller not found")
     return save(db, Product(**data.model_dump()))
 
 @app.get("/products", response_model=list[ProductOut])
-def products(db: DB, offset: int = 0, limit: int = 50):
-    if offset < 0 or not 1 <= limit <= 100:
-        raise HTTPException(422, "Invalid pagination")
+def products(
+    db: DB,
+    offset: Annotated[int, Query(ge=0, le=2147483647)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+):
     return list(db.scalars(select(Product).order_by(Product.id).offset(offset).limit(limit)))
 
-@app.post("/customers", response_model=CustomerOut, status_code=201)
+@app.post("/customers", response_model=CustomerOut, status_code=201, dependencies=write_access)
 def create_customer(data: CustomerIn, db: DB):
     return save(db, Customer(**data.model_dump()))
 
-@app.post("/orders", response_model=OrderOut, status_code=201)
+@app.post("/orders", response_model=OrderOut, status_code=201, dependencies=write_access)
 def create_order(data: OrderIn, db: DB):
     if db.get(Customer, data.customer_id) is None:
         raise HTTPException(404, "Customer not found")
