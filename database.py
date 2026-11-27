@@ -1,15 +1,21 @@
-from sqlalchemy import create_engine
+import os
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 
-# Database URL
-DATABASE_URL = "sqlite:///./shop.db"  # SQLite (eng oddiy, fayl yaratadi)
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./shop.db")
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {})
+if DATABASE_URL.startswith("sqlite"):
+    @event.listens_for(engine, "connect")
+    def enable_foreign_keys(connection, _):
+        cursor = connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 
-# Engine
-engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(bind=engine)
 
-# Session
-SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
-
-# Base
 class Base(DeclarativeBase):
     pass
+
+def get_db():
+    with SessionLocal() as session:
+        yield session
