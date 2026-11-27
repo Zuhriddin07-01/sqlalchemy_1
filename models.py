@@ -1,46 +1,56 @@
+from decimal import Decimal
+from sqlalchemy import ForeignKey, String, Numeric, CheckConstraint
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from database import Base
-from sqlalchemy import Integer, String, DECIMAL, Foreignkey
-from sqlalchemy.orm import mapped_column, Mapped, relationship
 
-class Seller(Base) :
+
+class Seller(Base):
     __tablename__ = "sellers"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key = True , index = True)
-    name : Mapped[str] = mapped_column(String(length = 50) , index = True)
-    products: Mapped[list["Product"]] = relationship("Product" , back_populates = "seller" , cascade = "all, delete-orphan")
-
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(50), index=True)
+    products: Mapped[list["Product"]] = relationship(back_populates="seller")
 
 
 class Product(Base):
     __tablename__ = "products"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key = True , index = True)
-    name : Mapped[str] = mapped_column(String(length = 100) , index = True)
-    description: Mapped[str] = mapped_column(String(length = 500))
-    seller_id : Mapped[str] = mapped_column(Foreignkey("sallers.id"))
-    seller: Mapped["Seller"] = relationship("seller" , back_populates = "products")
-    price: Mapped[float] = mapped_column(DECIMAL(10, 2))
-    order_items  = relationship("OrderItem", back_populates="product")
+    __table_args__ = (CheckConstraint("price >= 0"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), index=True)
+    description: Mapped[str] = mapped_column(String(500), default="")
+    seller_id: Mapped[int] = mapped_column(ForeignKey("sellers.id"))
+    price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
+    seller: Mapped["Seller"] = relationship(back_populates="products")
+    order_items: Mapped[list["OrderItem"]] = relationship(back_populates="product")
 
 
 class Customer(Base):
-    id: Mapped[int] = mapped_column(Integer , primary_key = True , index = True)
-    first_name : Mapped[String] = mapped_column(String(length = 100) , index = True) 
-    last_name : Mapped[String] = mapped_column(String(length = 200), index = True)
-    username: Mapped[String] = mapped_column(String(length = 300), index = True)  
-    phone: Mapped[String] = mapped_column(String(length = 300) , index = True)
-    address : Mapped[String] = mapped_column(String(length = 300) , index = True)
-    order_items    = relationship("OrderItem", back_populates="order")
-
-class Order:
-    id: Mapped[int] = mapped_column(Integer , primary_key = True , index = True)
-    status: Mapped[String] = mapped_column(String(length = 100) , index = True)
-    order_namber : Mapped[String] = mapped_column(String(length = 100) , index = True)
-    customer_id : Mapped[str] = mapped_column(Foreignkey("customer_id")) 
-    status : Mapped[String] = mapped_column(String(length = 100) , index = True)
-    product_id: Mapped[str] = mapped_column(Foreignkey("product_id"))
-    product = relationship("Product", back_populates="order_items")
+    __tablename__ = "customers"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    first_name: Mapped[str] = mapped_column(String(100))
+    last_name: Mapped[str] = mapped_column(String(200))
+    username: Mapped[str] = mapped_column(String(100), unique=True)
+    phone: Mapped[str] = mapped_column(String(30), default="")
+    address: Mapped[str] = mapped_column(String(300), default="")
+    orders: Mapped[list["Order"]] = relationship(back_populates="customer")
 
 
+class Order(Base):
+    __tablename__ = "orders"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    order_number: Mapped[str] = mapped_column(String(36), unique=True)
+    customer_id: Mapped[int] = mapped_column(ForeignKey("customers.id"))
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+    customer: Mapped["Customer"] = relationship(back_populates="orders")
+    items: Mapped[list["OrderItem"]] = relationship(back_populates="order", cascade="all, delete-orphan")
 
 
+class OrderItem(Base):
+    __tablename__ = "order_items"
+    __table_args__ = (CheckConstraint("quantity > 0"), CheckConstraint("unit_price >= 0"))
+    id: Mapped[int] = mapped_column(primary_key=True)
+    order_id: Mapped[int] = mapped_column(ForeignKey("orders.id"))
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id"))
+    quantity: Mapped[int]
+    unit_price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
+    order: Mapped["Order"] = relationship(back_populates="items")
+    product: Mapped["Product"] = relationship(back_populates="order_items")
