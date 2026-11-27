@@ -56,7 +56,7 @@ sqlalchemy_1/
 Run these commands in PowerShell.
 
 ```powershell
-git clone --branch portfolio/ecommerce-api https://github.com/Zuhriddin07-01/sqlalchemy_1.git
+git clone https://github.com/Zuhriddin07-01/sqlalchemy_1.git
 cd sqlalchemy_1
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
