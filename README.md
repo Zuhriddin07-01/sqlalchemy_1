@@ -1,54 +1,98 @@
-# E-Commerce Backend API
+# 🛒 E-Commerce Backend API
 
-A FastAPI and SQLAlchemy portfolio project for browsing a product catalog and creating orders. It extends the original Project 8 group database exercise.
+### Product Catalog & Order Management
 
-## Features
+A FastAPI project for browsing a product catalog and creating orders. It extends the original Project 8 group database exercise into a REST API with SQLAlchemy models, request validation, and interactive documentation.
 
-- Public product catalog with pagination and interactive Swagger documentation.
-- API-key protected creation of sellers, products, customers and orders.
-- Relational constraints, validated inputs and prices stored with each order item.
+---
 
-## Run locally
+## 🛠️ Tech Stack
 
-Use Python 3.11 or newer. From the repository root, run these commands in PowerShell.
+| Category | Technology |
+|---|---|
+| Language | Python 3.11+ |
+| API framework | FastAPI |
+| ORM | SQLAlchemy 2 |
+| Database | SQLite |
+| Validation | Pydantic |
+| Local development | Uvicorn |
+| Tests | unittest, HTTPX, GitHub Actions |
+
+## 🚀 Key Features
+
+- Browse the product catalog with pagination.
+- Create sellers, products, customers, and orders with an API key.
+- Preserve the product price on each order item at purchase time.
+- Validate prices, quantities, and record IDs before saving.
+- Explore request and response schemas in Swagger UI.
+
+## 📂 Project Structure
+
+```text
+sqlalchemy_1/
+├── main.py                  # FastAPI routes and request schemas
+├── models.py                # SQLAlchemy models and relationships
+├── database.py              # Database engine and session handling
+├── requirements.txt         # Application dependencies
+├── requirements-test.txt    # Test dependencies
+└── tests/
+    └── test_api.py           # API integration tests
+```
+
+## 🔗 REST API Endpoints
+
+| Method | Path | Access | Description |
+|---|---|---|---|
+| GET | `/health` | Public | Check application status |
+| GET | `/products` | Public | List products using `offset` and `limit` |
+| POST | `/sellers` | API key | Create a seller |
+| POST | `/products` | API key | Add a product for a seller |
+| POST | `/customers` | API key | Create a customer |
+| POST | `/orders` | API key | Create an order with one or more items |
+| GET | `/docs` | Public | Open Swagger UI |
+
+## ⚙️ Local Development
+
+Run these commands in PowerShell.
 
 ```powershell
+git clone --branch portfolio/ecommerce-api https://github.com/Zuhriddin07-01/sqlalchemy_1.git
+cd sqlalchemy_1
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 $env:SHOP_WRITE_API_KEY = .\.venv\Scripts\python.exe -c "import secrets; print(secrets.token_urlsafe(32))"
+$env:SHOP_WRITE_API_KEY
 .\.venv\Scripts\python.exe -m uvicorn main:app --reload
 ```
 
-Open the [local Swagger UI](http://127.0.0.1:8000/docs). Use **Authorize** with the value of `SHOP_WRITE_API_KEY` to try write endpoints. The key is a shared credential for demo operators. Keep it outside source control and use HTTPS on hosted instances. Writes return 401 for missing or incorrect keys and 503 if the server key is unavailable.
+Open [Swagger UI](http://127.0.0.1:8000/docs). Copy the key printed in PowerShell and enter it under **Authorize** to use the write endpoints. Keep the key out of commits.
 
-## API
+The app creates missing tables in `shop.db` on startup. Use a fresh local SQLite database if you have an incompatible schema from an earlier exercise, and keep a backup of the old file.
 
-| Method | Path | Access | Purpose |
-|---|---|---|---|
-| GET | `/health` | Public | Health check |
-| GET | `/products` | Public | List products with `offset` and `limit` |
-| POST | `/sellers` | API key | Create a seller |
-| POST | `/products` | API key | Create a product |
-| POST | `/customers` | API key | Create a customer |
-| POST | `/orders` | API key | Create an order |
+### Try the order flow
 
-Create a seller, add a product for that seller, and create a customer. Then submit an order with the customer ID, product ID and quantity.
+1. Create a seller and use its returned ID to add a product.
+2. Create a customer and keep the returned ID.
+3. Submit an order using the returned customer and product IDs. For example, if both IDs are `1`:
 
-## Run tests
+```json
+{
+  "customer_id": 1,
+  "items": [{"product_id": 1, "quantity": 2}]
+}
+```
+
+## 🧪 Automated Tests
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -r requirements-test.txt
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-Each test uses a fresh SQLite database. The suite checks permissions, the order flow, input validation, conflicts and the OpenAPI security scheme.
+The tests use fresh SQLite databases and cover the order flow, API-key permissions, input validation, conflicts, and OpenAPI documentation.
 
-## Render demo
+## 👨‍💻 Author
 
-Create a Blueprint in Render and select this repository and its `main` branch. [render.yaml](render.yaml) defines the build and start commands, the `/health` check, and a generated `SHOP_WRITE_API_KEY` in Render's environment. Open `/health` and `/docs` on the URL Render assigns after the deployment succeeds.
+**Zuhriddin Nosirov** · [GitHub profile](https://github.com/Zuhriddin07-01)
 
-The free demo uses SQLite in an ephemeral filesystem. Use sample data only. A restart or redeploy can erase the catalog and orders. Back up any existing local database before changing its schema. The app creates missing tables on startup.
-
-## Attribution
-
-Originally developed with Project 8 group students.
+The original database exercise was developed with Project 8 group students.
